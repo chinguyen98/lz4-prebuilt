@@ -36,6 +36,10 @@ function findBinary() {
 try {
   const lz4Binary = findBinary();
 
+  // Kafka LZ4 Message Format constants
+  const KAFKA_LZ4_MAGIC = 0x184D2204;
+  const KAFKA_LZ4_HEADER_SIZE = 8; // 4 bytes magic + 4 bytes size
+
   function safeCompress(input: Buffer): Buffer {
     if (!Buffer.isBuffer(input)) {
       throw new TypeError('Input must be a Buffer');
@@ -44,79 +48,90 @@ try {
     // Get the maximum compressed size
     const maxSize = lz4Binary.compressBound(input.length);
     
-    // Create output buffer
-    const output = Buffer.alloc(maxSize);
+    // Create output buffer with space for Kafka LZ4 header
+    const output = Buffer.alloc(maxSize + KAFKA_LZ4_HEADER_SIZE);
     
     try {
-      // Compress the data directly as raw LZ4 block
-      const compressedSize = lz4Binary.compress(input, output);
+      // Write Kafka LZ4 header
+      output.writeUInt32BE(KAFKA_LZ4_MAGIC, 0); // Magic number
+      output.writeUInt32BE(input.length, 4);    // Original size
+      
+      // Compress the data after the header
+      const compressedSize = lz4Binary.compress(input, output.slice(KAFKA_LZ4_HEADER_SIZE));
       
       // Return only the used portion of the buffer
-      return output.slice(0, compressedSize);
+      return output.slice(0, compressedSize + KAFKA_LZ4_HEADER_SIZE);
     } catch (error: any) {
       throw new Error(`Compression failed: ${error?.message || 'Unknown error'}`);
     }
   }
 
-  function safeDecompress(input: Buffer, providedSize?: number): Buffer {
+  function safeDecompress(input: Buffer): Buffer {
     if (!Buffer.isBuffer(input)) {
       throw new TypeError('Input must be a Buffer');
     }
 
-    console.log(`[LZ4] Decompressing buffer of size ${input.length} bytes${providedSize ? `, expected size: ${providedSize} bytes` : ''}`);
+    console.log(`[LZ4] Decompressing buffer of size ${input.length} bytes`);
 
     try {
-      // First, try with provided size if available
-      if (typeof providedSize === 'number' && providedSize > 0) {
-        console.log(`[LZ4] Attempting decompression with provided size: ${providedSize} bytes`);
-        try {
-          const output = Buffer.alloc(providedSize);
-          const decompressedSize = lz4Binary.uncompress(input, output);
-          
-          if (decompressedSize === providedSize) {
-            console.log(`[LZ4] Successfully decompressed with provided size: ${decompressedSize} bytes`);
-            return output;
-          }
-          console.log(`[LZ4] Size mismatch with provided size: expected ${providedSize}, got ${decompressedSize}`);
-        } catch (err: any) {
-          console.log(`[LZ4] Failed with provided size: ${err?.message || 'Unknown error'}`);
-        }
+      if (input.length < KAFKA_LZ4_HEADER_SIZE) {
+        throw new Error('Input too short to contain Kafka LZ4 header');
       }
 
-      // If no size provided or size doesn't match, try progressive sizing
-      const maxAttempts = 10;
-      let size = Math.max(input.length * 8, 64 * 1024); // Start with 8x compressed size or 64KB minimum
-      
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        console.log(`[LZ4] Attempt ${attempt + 1}/${maxAttempts} with buffer size: ${size} bytes`);
-        
-        try {
-          const output = Buffer.alloc(size);
-          const decompressedSize = lz4Binary.uncompress(input, output);
-          
-          if (decompressedSize > 0 && decompressedSize <= size) {
-            console.log(`[LZ4] Successfully decompressed ${decompressedSize} bytes on attempt ${attempt + 1}`);
-            return output.slice(0, decompressedSize);
-          }
-          console.log(`[LZ4] Attempt ${attempt + 1} returned invalid size: ${decompressedSize}`);
-        } catch (err: any) {
-          console.log(`[LZ4] Attempt ${attempt + 1} failed: ${err?.message || 'Unknown error'}`);
-          
-          // If we get a buffer bounds error, the buffer might be too small
-          if (attempt === maxAttempts - 1) {
-            throw new Error(`Decompression failed after ${maxAttempts} attempts with max buffer size ${size}: ${err?.message || 'Unknown error'}`);
-          }
-        }
-        
-        // Use a more aggressive growth factor for large inputs
-        const growthFactor = input.length > 1024 * 1024 ? 4 : 2;
-        size = Math.min(size * growthFactor, 256 * 1024 * 1024); // Cap at 256MB
+      // Read and verify Kafka LZ4 header
+      const magic = input.readUInt32BE(0);
+      if (magic !== KAFKA_LZ4_MAGIC) {
+        console.log(`[LZ4] Warning: Invalid magic number ${magic.toString(16)}, trying raw LZ4`);
+        return decompressRawLZ4(input);
       }
+
+      // Read the original size
+      const originalSize = input.readUInt32BE(4);
+      console.log(`[LZ4] Kafka LZ4 header found, original size: ${originalSize} bytes`);
+
+      // Create output buffer
+      const output = Buffer.alloc(originalSize);
       
-      throw new Error(`Failed to decompress after ${maxAttempts} attempts with sizes up to ${size} bytes`);
+      // Skip header and decompress
+      const compressedData = input.slice(KAFKA_LZ4_HEADER_SIZE);
+      const decompressedSize = lz4Binary.uncompress(compressedData, output);
+      
+      if (decompressedSize !== originalSize) {
+        throw new Error(`Size mismatch: expected ${originalSize}, got ${decompressedSize}`);
+      }
+
+      return output;
     } catch (error: any) {
       throw new Error(`Decompression failed: ${error?.message || 'Unknown error'}`);
     }
+  }
+
+  function decompressRawLZ4(input: Buffer): Buffer {
+    // Try progressive buffer sizes for raw LZ4 data
+    const maxAttempts = 10;
+    let size = Math.max(input.length * 4, 64 * 1024);
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      console.log(`[LZ4] Raw decompression attempt ${attempt + 1}/${maxAttempts} with buffer size: ${size} bytes`);
+      
+      try {
+        const output = Buffer.alloc(size);
+        const decompressedSize = lz4Binary.uncompress(input, output);
+        
+        if (decompressedSize > 0 && decompressedSize <= size) {
+          console.log(`[LZ4] Successfully decompressed ${decompressedSize} bytes`);
+          return output.slice(0, decompressedSize);
+        }
+        console.log(`[LZ4] Invalid decompressed size: ${decompressedSize}`);
+      } catch (err: any) {
+        console.log(`[LZ4] Attempt failed: ${err?.message || 'Unknown error'}`);
+        if (attempt === maxAttempts - 1) throw err;
+      }
+      
+      size = Math.min(size * 2, 256 * 1024 * 1024);
+    }
+    
+    throw new Error('Failed to decompress raw LZ4 data');
   }
 
   module.exports = {
