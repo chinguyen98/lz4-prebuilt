@@ -1,13 +1,15 @@
-import { encode, decode } from './binary';
+const lz4Module = require('./binary');
 
-export const LZ4Codec = {
+const LZ4Codec = {
   async compress(encoder: Buffer): Promise<Buffer> {
-    return encode(encoder);
+    return lz4Module.encode(encoder);
   },
 
   async decompress(buffer: Buffer): Promise<Buffer> {
-    return decode(buffer);
+    return lz4Module.decode(buffer);
   },
 };
 
-export default LZ4Codec; 
+module.exports = LZ4Codec;
+module.exports.default = LZ4Codec;
+module.exports.LZ4Codec = LZ4Codec; 

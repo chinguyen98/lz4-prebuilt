@@ -1,2 +1,2 @@
-export declare const encode: any;
-export declare const decode: any;
+declare const path: any;
+declare const lz4Binary: any;

@@ -1,7 +1,7 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.decode = exports.encode = void 0;
 const path = require('path');
-const binary = require('./lz4.node');
-exports.encode = binary.encode;
-exports.decode = binary.decode;
+const lz4Binary = require('./lz4.node');
+module.exports = {
+    encode: lz4Binary.encode,
+    decode: lz4Binary.decode
+};
