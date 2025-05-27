@@ -33,50 +33,19 @@ function findBinary() {
 }
 try {
     const lz4Binary = findBinary();
-    // LZ4 Frame constants
-    const MAGIC_NUMBER = 0x184D2204;
-    const FRAME_HEADER_SIZE = 7;
-    const SIZE_FIELD_OFFSET = 6;
-    const CONTENT_SIZE_PRESENT = 0x01;
-    function readFrameHeader(input) {
-        if (input.length < FRAME_HEADER_SIZE) {
-            throw new Error('Input too short to contain LZ4 frame header');
-        }
-        const magic = input.readUInt32LE(0);
-        if (magic !== MAGIC_NUMBER) {
-            throw new Error('Invalid LZ4 frame magic number');
-        }
-        const flg = input[4];
-        const hasContentSize = (flg & CONTENT_SIZE_PRESENT) !== 0;
-        let contentSize;
-        if (hasContentSize) {
-            if (input.length < 15) { // Header + 8 byte size
-                throw new Error('Input too short to contain content size');
-            }
-            // Read 8-byte content size
-            contentSize = Number(input.readBigUInt64LE(7));
-        }
-        return { hasContentSize, contentSize };
-    }
     function safeCompress(input) {
         if (!Buffer.isBuffer(input)) {
             throw new TypeError('Input must be a Buffer');
         }
         // Get the maximum compressed size
         const maxSize = lz4Binary.compressBound(input.length);
-        // Create output buffer with space for frame
-        const output = Buffer.alloc(maxSize + 15); // Frame header + content size
+        // Create output buffer
+        const output = Buffer.alloc(maxSize);
         try {
-            // Write LZ4 frame header
-            output.writeUInt32LE(MAGIC_NUMBER, 0);
-            output.writeUInt8(CONTENT_SIZE_PRESENT, 4); // FLG byte
-            output.writeUInt8(0x00, 5); // BD byte
-            output.writeUInt8(0x00, 6); // HC byte
-            output.writeBigUInt64LE(BigInt(input.length), 7); // Content size
-            // Compress the data after the frame header
-            const compressedSize = lz4Binary.compress(input, output.slice(15));
+            // Compress the data directly as raw LZ4 block
+            const compressedSize = lz4Binary.compress(input, output);
             // Return only the used portion of the buffer
-            return output.slice(0, compressedSize + 15);
+            return output.slice(0, compressedSize);
         }
         catch (error) {
             throw new Error(`Compression failed: ${(error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'}`);
@@ -87,28 +56,35 @@ try {
             throw new TypeError('Input must be a Buffer');
         }
         try {
-            let originalSize;
-            if (typeof providedSize === 'number' && providedSize >= 0) {
-                originalSize = providedSize;
-            }
-            else {
-                // Try to read size from frame header
-                const frameInfo = readFrameHeader(input);
-                if (!frameInfo.hasContentSize || typeof frameInfo.contentSize !== 'number') {
-                    throw new Error('Content size not available in frame header');
+            // First, try with provided size if available
+            if (typeof providedSize === 'number' && providedSize > 0) {
+                const output = Buffer.alloc(providedSize);
+                const decompressedSize = lz4Binary.uncompress(input, output);
+                if (decompressedSize === providedSize) {
+                    return output;
                 }
-                originalSize = frameInfo.contentSize;
             }
-            // Create output buffer
-            const output = Buffer.alloc(originalSize);
-            // Skip frame header for decompression
-            const compressedData = input.slice(15);
-            // Decompress the data
-            const decompressedSize = lz4Binary.uncompress(compressedData, output);
-            if (decompressedSize !== originalSize) {
-                throw new Error(`Decompression failed: size mismatch (expected ${originalSize}, got ${decompressedSize})`);
+            // If no size provided or size doesn't match, try progressive sizing
+            const maxAttempts = 8;
+            let size = Math.max(input.length * 4, 1024); // Start with 4x compressed size or 1KB minimum
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    const output = Buffer.alloc(size);
+                    const decompressedSize = lz4Binary.uncompress(input, output);
+                    if (decompressedSize > 0 && decompressedSize <= size) {
+                        return output.slice(0, decompressedSize);
+                    }
+                }
+                catch (err) {
+                    // If we get a buffer bounds error, the buffer might be too small
+                    if (attempt === maxAttempts - 1) {
+                        throw new Error(`Decompression failed after ${maxAttempts} attempts with max buffer size ${size}: ${(err === null || err === void 0 ? void 0 : err.message) || 'Unknown error'}`);
+                    }
+                }
+                // Increase buffer size for next attempt
+                size = Math.min(size * 2, 64 * 1024 * 1024); // Cap at 64MB
             }
-            return output;
+            throw new Error('Failed to decompress: could not determine correct buffer size');
         }
         catch (error) {
             throw new Error(`Decompression failed: ${(error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'}`);
