@@ -1,6 +1,6 @@
 {
   "name": "lz4-prebuilt",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "LZ4 compression with prebuilt binaries",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "copy-binary": "mkdir -p dist/binary && cp lib/binary/*.node dist/binary/",
+    "copy-binary": "mkdir -p dist/binary && cp lib/binary/*.node dist/binary/ && cp lib/index.d.ts dist/",
     "build": "npm run clean && tsc && npm run copy-binary",
     "prepare": "npm run build"
   },

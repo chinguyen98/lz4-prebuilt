@@ -1,23 +1,28 @@
-import { encode, decode } from './binary';
+const lz4Module = require('./binary');
 
-export interface ILZ4Codec {
-  compress(encoder: Buffer): Promise<Buffer>;
-  decompress(buffer: Buffer): Promise<Buffer>;
-}
+/**
+ * @typedef {Object} LZ4Codec
+ * @property {(input: Buffer) => Promise<Buffer>} compress - Compress data using LZ4
+ * @property {(input: Buffer) => Promise<Buffer>} decompress - Decompress LZ4 data
+ */
 
-export const LZ4Codec: ILZ4Codec = {
-  async compress(encoder: Buffer): Promise<Buffer> {
-    return encode(encoder);
+/** @type {LZ4Codec} */
+const LZ4Codec = {
+  async compress(input: Buffer): Promise<Buffer> {
+    if (!Buffer.isBuffer(input)) {
+      throw new TypeError('Input must be a Buffer');
+    }
+    return lz4Module.encode(input);
   },
 
-  async decompress(buffer: Buffer): Promise<Buffer> {
-    return decode(buffer);
-  },
+  async decompress(input: Buffer): Promise<Buffer> {
+    if (!Buffer.isBuffer(input)) {
+      throw new TypeError('Input must be a Buffer');
+    }
+    return lz4Module.decode(input);
+  }
 };
 
-export default LZ4Codec;
-
-// For CommonJS compatibility
 module.exports = LZ4Codec;
-module.exports.default = LZ4Codec;
-module.exports.LZ4Codec = LZ4Codec; 
+module.exports.LZ4Codec = LZ4Codec;
+module.exports.default = LZ4Codec; 

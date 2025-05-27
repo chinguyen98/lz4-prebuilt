@@ -1,18 +1,26 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.LZ4Codec = void 0;
-const binary_1 = require("./binary");
-exports.LZ4Codec = {
-    async compress(encoder) {
-        return (0, binary_1.encode)(encoder);
+const lz4Module = require('./binary');
+/**
+ * @typedef {Object} LZ4Codec
+ * @property {(input: Buffer) => Promise<Buffer>} compress - Compress data using LZ4
+ * @property {(input: Buffer) => Promise<Buffer>} decompress - Decompress LZ4 data
+ */
+/** @type {LZ4Codec} */
+const LZ4Codec = {
+    async compress(input) {
+        if (!Buffer.isBuffer(input)) {
+            throw new TypeError('Input must be a Buffer');
+        }
+        return lz4Module.encode(input);
     },
-    async decompress(buffer) {
-        return (0, binary_1.decode)(buffer);
-    },
+    async decompress(input) {
+        if (!Buffer.isBuffer(input)) {
+            throw new TypeError('Input must be a Buffer');
+        }
+        return lz4Module.decode(input);
+    }
 };
-exports.default = exports.LZ4Codec;
-// For CommonJS compatibility
-module.exports = exports.LZ4Codec;
-module.exports.default = exports.LZ4Codec;
-module.exports.LZ4Codec = exports.LZ4Codec;
+module.exports = LZ4Codec;
+module.exports.LZ4Codec = LZ4Codec;
+module.exports.default = LZ4Codec;
 //# sourceMappingURL=index.js.map

@@ -1,13 +1,7 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.decode = exports.encode = void 0;
-const path = require('path');
-const binary = require('./lz4.node');
-exports.encode = binary.encode;
-exports.decode = binary.decode;
-// For CommonJS compatibility
-module.exports = {
-    encode: binary.encode,
-    decode: binary.decode
-};
+const lz4Binary = require('./lz4.node');
+if (!lz4Binary || typeof lz4Binary.encode !== 'function' || typeof lz4Binary.decode !== 'function') {
+    throw new Error('Failed to load LZ4 binary module');
+}
+module.exports = lz4Binary;
 //# sourceMappingURL=index.js.map

@@ -10,8 +10,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true
   },
   "include": ["lib/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "lib/index.d.ts"]
 }
