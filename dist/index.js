@@ -1,10 +1,13 @@
-import { encode, decode } from './binary/index.js';
-export const LZ4Codec = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LZ4Codec = void 0;
+const binary_1 = require("./binary");
+exports.LZ4Codec = {
     async compress(encoder) {
-        return encode(encoder);
+        return (0, binary_1.encode)(encoder);
     },
     async decompress(buffer) {
-        return decode(buffer);
+        return (0, binary_1.decode)(buffer);
     },
 };
-export default LZ4Codec;
+exports.default = exports.LZ4Codec;

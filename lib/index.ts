@@ -1,4 +1,4 @@
-import { encode, decode } from './binary/index.js';
+import { encode, decode } from './binary';
 
 export const LZ4Codec = {
   async compress(encoder: Buffer): Promise<Buffer> {
