@@ -11,8 +11,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "allowJs": true
+    "allowJs": true,
+    "resolveJsonModule": true
   },
   "include": ["lib/**/*"],
-  "exclude": ["node_modules", "lib/index.d.ts"]
+  "exclude": ["node_modules", "lib/index.d.ts", "**/*.node"]
 }

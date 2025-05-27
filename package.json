@@ -1,12 +1,13 @@
 {
   "name": "lz4-prebuilt",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "LZ4 compression with prebuilt binaries",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "dist/binary/*.node"
+    "dist/binary",
+    "lib/binary/*.node"
   ],
   "scripts": {
     "clean": "rm -rf dist",
