@@ -33,10 +33,46 @@ function findBinary() {
 }
 try {
     const lz4Binary = findBinary();
-    // Export the functions with our desired names
+    // Wrap the binary functions to ensure proper argument handling
     module.exports = {
-        encode: lz4Binary.compress,
-        decode: lz4Binary.uncompress
+        encode: function (input) {
+            if (!Buffer.isBuffer(input)) {
+                throw new TypeError('Input must be a Buffer');
+            }
+            // Get the maximum compressed size
+            const maxSize = lz4Binary.compressBound(input.length);
+            // Create output buffer
+            const output = Buffer.alloc(maxSize);
+            // Compress the data
+            const compressedSize = lz4Binary.compress(input, output);
+            // Return only the compressed portion
+            return output.slice(0, compressedSize);
+        },
+        decode: function (input) {
+            if (!Buffer.isBuffer(input)) {
+                throw new TypeError('Input must be a Buffer');
+            }
+            // For decompression, we need to know the original size
+            // Try to decompress with increasing buffer sizes
+            let size = input.length * 2; // Start with 2x the compressed size
+            let maxAttempts = 5; // Prevent infinite loops
+            while (maxAttempts > 0) {
+                try {
+                    const output = Buffer.alloc(size);
+                    const decompressedSize = lz4Binary.uncompress(input, output);
+                    return output.slice(0, decompressedSize);
+                }
+                catch (error) {
+                    if (error.message === 'Wrong arguments' && maxAttempts > 1) {
+                        size *= 2; // Double the size and try again
+                        maxAttempts--;
+                        continue;
+                    }
+                    throw error;
+                }
+            }
+            throw new Error('Failed to decompress data: output buffer too small');
+        }
     };
 }
 catch (error) {
