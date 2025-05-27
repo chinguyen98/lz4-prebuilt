@@ -40,6 +40,14 @@ try {
   const KAFKA_LZ4_MAGIC = 0x184D2204;
   const KAFKA_LZ4_HEADER_SIZE = 8; // 4 bytes magic + 4 bytes size
 
+  function dumpBuffer(buffer: Buffer, offset: number, length: number) {
+    const bytes = [];
+    for (let i = offset; i < offset + length && i < buffer.length; i++) {
+      bytes.push(buffer[i].toString(16).padStart(2, '0'));
+    }
+    return bytes.join(' ');
+  }
+
   function safeCompress(input: Buffer): Buffer {
     if (!Buffer.isBuffer(input)) {
       throw new TypeError('Input must be a Buffer');
@@ -72,6 +80,7 @@ try {
     }
 
     console.log(`[LZ4] Decompressing buffer of size ${input.length} bytes`);
+    console.log(`[LZ4] First 16 bytes: ${dumpBuffer(input, 0, 16)}`);
 
     try {
       if (input.length < KAFKA_LZ4_HEADER_SIZE) {
@@ -83,26 +92,36 @@ try {
       console.log(`[LZ4] Magic number: 0x${magic.toString(16)}`);
       
       if (magic !== KAFKA_LZ4_MAGIC) {
-        // Try reading the magic number in reverse byte order
-        const reversedMagic = ((magic & 0xFF) << 24) | ((magic & 0xFF00) << 8) |
-                             ((magic & 0xFF0000) >> 8) | ((magic >>> 24) & 0xFF);
-        console.log(`[LZ4] Reversed magic number: 0x${reversedMagic.toString(16)}`);
-        
-        if (reversedMagic !== KAFKA_LZ4_MAGIC) {
-          console.log(`[LZ4] Warning: Invalid magic number, trying raw LZ4`);
-          return decompressRawLZ4(input);
-        }
+        console.log(`[LZ4] Warning: Invalid magic number, trying raw LZ4`);
+        return decompressRawLZ4(input);
       }
 
-      // Read the original size (little-endian)
-      const originalSize = input.readUInt32LE(4);
-      console.log(`[LZ4] Kafka LZ4 header found, original size: ${originalSize} bytes`);
+      // Try different ways to read the size
+      const size1 = input.readUInt32LE(4);
+      const size2 = input.readInt32LE(4);
+      const size3 = input[4] | (input[5] << 8) | (input[6] << 16) | (input[7] << 24);
+      
+      console.log(`[LZ4] Possible sizes: uint32=${size1}, int32=${size2}, manual=${size3}`);
+      
+      // Use a reasonable size limit (64MB)
+      const maxReasonableSize = 64 * 1024 * 1024;
+      let originalSize = size1;
+      
+      if (size1 > maxReasonableSize && size2 > 0 && size2 < maxReasonableSize) {
+        originalSize = size2;
+      } else if (size1 > maxReasonableSize && size3 > 0 && size3 < maxReasonableSize) {
+        originalSize = size3;
+      }
+
+      console.log(`[LZ4] Using size: ${originalSize} bytes`);
 
       // Create output buffer
       const output = Buffer.alloc(originalSize);
       
       // Skip header and decompress
       const compressedData = input.slice(KAFKA_LZ4_HEADER_SIZE);
+      console.log(`[LZ4] Compressed data starts with: ${dumpBuffer(compressedData, 0, 8)}`);
+      
       const decompressedSize = lz4Binary.uncompress(compressedData, output);
       
       if (decompressedSize !== originalSize) {
