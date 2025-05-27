@@ -1,8 +1,17 @@
 const path = require('path');
 
-const lz4Binary = require('./lz4.node');
+declare const lz4Binary: {
+  encode: (input: Buffer) => Buffer;
+  decode: (input: Buffer) => Buffer;
+};
 
+const binary = require('./lz4.node') as typeof lz4Binary;
+
+export const encode = binary.encode;
+export const decode = binary.decode;
+
+// For CommonJS compatibility
 module.exports = {
-  encode: lz4Binary.encode,
-  decode: lz4Binary.decode
+  encode: binary.encode,
+  decode: binary.decode
 }; 

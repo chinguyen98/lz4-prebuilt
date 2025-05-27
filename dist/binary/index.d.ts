@@ -1,2 +1,3 @@
-declare const path: any;
-declare const lz4Binary: any;
+export declare const encode: (input: Buffer) => Buffer;
+export declare const decode: (input: Buffer) => Buffer;
+//# sourceMappingURL=index.d.ts.map
