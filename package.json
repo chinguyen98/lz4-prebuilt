@@ -1,0 +1,36 @@
+{
+  "name": "lz4-prebuilt",
+  "version": "1.0.0",
+  "description": "LZ4 compression with prebuilt binaries",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "lib/binary"
+  ],
+  "scripts": {},
+  "keywords": [
+    "lz4",
+    "compression",
+    "prebuilt",
+    "binary"
+  ],
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/[your-username]/lz4-prebuilt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/[your-username]/lz4-prebuilt/issues"
+  },
+  "homepage": "https://github.com/[your-username]/lz4-prebuilt#readme",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}
