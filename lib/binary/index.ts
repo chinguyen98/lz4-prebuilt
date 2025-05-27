@@ -44,52 +44,38 @@ try {
     // Get the maximum compressed size
     const maxSize = lz4Binary.compressBound(input.length);
     
-    // Create output buffer with some extra padding for safety
-    const output = Buffer.alloc(maxSize + 8);
+    // Create output buffer
+    const output = Buffer.alloc(maxSize);
     
     try {
-      // Write the original size at the start of the buffer
-      output.writeUInt32LE(input.length, 0);
-      
-      // Compress the data after the size header
-      const compressedSize = lz4Binary.compress(input, output.slice(8));
-      
-      // Write the compressed size
-      output.writeUInt32LE(compressedSize, 4);
+      // Compress the data directly
+      const compressedSize = lz4Binary.compress(input, output);
       
       // Return only the used portion of the buffer
-      return output.slice(0, compressedSize + 8);
+      return output.slice(0, compressedSize);
     } catch (error: any) {
       throw new Error(`Compression failed: ${error?.message || 'Unknown error'}`);
     }
   }
 
-  function safeDecompress(input: Buffer): Buffer {
+  function safeDecompress(input: Buffer, originalSize: number): Buffer {
     if (!Buffer.isBuffer(input)) {
       throw new TypeError('Input must be a Buffer');
     }
 
-    if (input.length < 8) {
-      throw new Error('Invalid compressed data: too short');
+    if (originalSize < 0) {
+      throw new Error('Invalid original size');
     }
 
     try {
-      // Read the original and compressed sizes
-      const originalSize = input.readUInt32LE(0);
-      const compressedSize = input.readUInt32LE(4);
-
-      if (compressedSize > input.length - 8) {
-        throw new Error('Invalid compressed data: size mismatch');
-      }
-
-      // Create output buffer
+      // Create output buffer based on the provided original size
       const output = Buffer.alloc(originalSize);
       
       // Decompress the data
-      const decompressedSize = lz4Binary.uncompress(input.slice(8), output);
+      const decompressedSize = lz4Binary.uncompress(input, output);
       
       if (decompressedSize !== originalSize) {
-        throw new Error('Decompression failed: size mismatch');
+        throw new Error(`Decompression failed: size mismatch (expected ${originalSize}, got ${decompressedSize})`);
       }
 
       return output;
@@ -100,7 +86,10 @@ try {
 
   module.exports = {
     encode: safeCompress,
-    decode: safeDecompress
+    decode: safeDecompress,
+    // Also export raw functions for compatibility
+    compress: safeCompress,
+    uncompress: safeDecompress
   };
 } catch (error: any) {
   console.error('Fatal error loading LZ4 binary:', error?.message || 'Unknown error');
