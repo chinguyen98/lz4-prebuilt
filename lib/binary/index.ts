@@ -58,27 +58,43 @@ try {
     }
   }
 
-  function safeDecompress(input: Buffer, originalSize: number): Buffer {
+  function safeDecompress(input: Buffer, originalSize?: number): Buffer {
     if (!Buffer.isBuffer(input)) {
       throw new TypeError('Input must be a Buffer');
     }
 
-    if (originalSize < 0) {
-      throw new Error('Invalid original size');
-    }
-
     try {
-      // Create output buffer based on the provided original size
-      const output = Buffer.alloc(originalSize);
-      
-      // Decompress the data
-      const decompressedSize = lz4Binary.uncompress(input, output);
-      
-      if (decompressedSize !== originalSize) {
-        throw new Error(`Decompression failed: size mismatch (expected ${originalSize}, got ${decompressedSize})`);
-      }
+      if (typeof originalSize === 'number' && originalSize >= 0) {
+        // If we have the original size, use it directly
+        const output = Buffer.alloc(originalSize);
+        const decompressedSize = lz4Binary.uncompress(input, output);
+        
+        if (decompressedSize !== originalSize) {
+          throw new Error(`Decompression failed: size mismatch (expected ${originalSize}, got ${decompressedSize})`);
+        }
 
-      return output;
+        return output;
+      } else {
+        // If no size provided, try with progressively larger buffers
+        let size = input.length * 2; // Start with 2x the compressed size
+        const maxAttempts = 4;
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const output = Buffer.alloc(size);
+            const decompressedSize = lz4Binary.uncompress(input, output);
+            return output.slice(0, decompressedSize);
+          } catch (err: any) {
+            if (attempt === maxAttempts - 1) {
+              throw err; // Last attempt failed
+            }
+            // Double the size for next attempt
+            size *= 2;
+          }
+        }
+        
+        throw new Error('Failed to determine decompressed size after multiple attempts');
+      }
     } catch (error: any) {
       throw new Error(`Decompression failed: ${error?.message || 'Unknown error'}`);
     }
