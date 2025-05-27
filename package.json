@@ -6,9 +6,13 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "lib/binary"
+    "lib/binary/*.node",
+    "lib/binary/index.js"
   ],
-  "scripts": {},
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
   "keywords": [
     "lz4",
     "compression",
@@ -19,12 +23,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/[your-username]/lz4-prebuilt.git"
+    "url": "git+https://github.com/chinguyen98/lz4-prebuilt.git"
   },
   "bugs": {
-    "url": "https://github.com/[your-username]/lz4-prebuilt/issues"
+    "url": "https://github.com/chinguyen98/lz4-prebuilt/issues"
   },
-  "homepage": "https://github.com/[your-username]/lz4-prebuilt#readme",
+  "homepage": "https://github.com/chinguyen98/lz4-prebuilt#readme",
   "engines": {
     "node": ">=12.0.0"
   },

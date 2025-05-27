@@ -1,49 +1,45 @@
 # lz4-prebuilt
 
-A Node.js package providing LZ4 compression with prebuilt binaries for easy installation and use.
+Pre-built LZ4 compression library for Node.js with TypeScript support.
 
 ## Installation
 
+You can install this package directly from GitHub:
+
+```json
+{
+  "dependencies": {
+    "lz4-prebuilt": "git+https://github.com/duyan/lz4-prebuilt.git#v1.0.0"
+  }
+}
+```
+
+Or using npm:
+
 ```bash
-npm install lz4-prebuilt
-# or
-yarn add lz4-prebuilt
+npm install git+https://github.com/duyan/lz4-prebuilt.git#v1.0.0
 ```
 
 ## Usage
 
 ```typescript
-import { compress, decompress } from 'lz4-prebuilt';
+import LZ4Codec from 'lz4-prebuilt';
 
 // Compress data
 const data = Buffer.from('Hello, World!');
-const compressed = compress(data);
+const compressed = await LZ4Codec.compress(data);
 
 // Decompress data
-const decompressed = decompress(compressed);
+const decompressed = await LZ4Codec.decompress(compressed);
 console.log(decompressed.toString()); // 'Hello, World!'
 ```
 
 ## Features
 
-- Pre-built binaries for multiple platforms
+- Pre-built binaries included (no build step required)
 - TypeScript support
-- Simple API for compression and decompression
-- High performance LZ4 compression
-
-## API
-
-### compress(input: Buffer): Buffer
-
-Compresses the input buffer using LZ4 compression.
-
-### decompress(input: Buffer): Buffer
-
-Decompresses the LZ4-compressed input buffer.
-
-## Requirements
-
-- Node.js >= 12.0.0
+- Async API
+- Works on Node.js 12+
 
 ## License
 
