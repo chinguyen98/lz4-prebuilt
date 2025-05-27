@@ -45,9 +45,9 @@ try {
         // Create output buffer with space for Kafka LZ4 header
         const output = Buffer.alloc(maxSize + KAFKA_LZ4_HEADER_SIZE);
         try {
-            // Write Kafka LZ4 header
-            output.writeUInt32BE(KAFKA_LZ4_MAGIC, 0); // Magic number
-            output.writeUInt32BE(input.length, 4); // Original size
+            // Write Kafka LZ4 header (little-endian)
+            output.writeUInt32LE(KAFKA_LZ4_MAGIC, 0); // Magic number
+            output.writeUInt32LE(input.length, 4); // Original size
             // Compress the data after the header
             const compressedSize = lz4Binary.compress(input, output.slice(KAFKA_LZ4_HEADER_SIZE));
             // Return only the used portion of the buffer
@@ -66,14 +66,21 @@ try {
             if (input.length < KAFKA_LZ4_HEADER_SIZE) {
                 throw new Error('Input too short to contain Kafka LZ4 header');
             }
-            // Read and verify Kafka LZ4 header
-            const magic = input.readUInt32BE(0);
+            // Read and verify Kafka LZ4 header (little-endian)
+            const magic = input.readUInt32LE(0);
+            console.log(`[LZ4] Magic number: 0x${magic.toString(16)}`);
             if (magic !== KAFKA_LZ4_MAGIC) {
-                console.log(`[LZ4] Warning: Invalid magic number ${magic.toString(16)}, trying raw LZ4`);
-                return decompressRawLZ4(input);
+                // Try reading the magic number in reverse byte order
+                const reversedMagic = ((magic & 0xFF) << 24) | ((magic & 0xFF00) << 8) |
+                    ((magic & 0xFF0000) >> 8) | ((magic >>> 24) & 0xFF);
+                console.log(`[LZ4] Reversed magic number: 0x${reversedMagic.toString(16)}`);
+                if (reversedMagic !== KAFKA_LZ4_MAGIC) {
+                    console.log(`[LZ4] Warning: Invalid magic number, trying raw LZ4`);
+                    return decompressRawLZ4(input);
+                }
             }
-            // Read the original size
-            const originalSize = input.readUInt32BE(4);
+            // Read the original size (little-endian)
+            const originalSize = input.readUInt32LE(4);
             console.log(`[LZ4] Kafka LZ4 header found, original size: ${originalSize} bytes`);
             // Create output buffer
             const output = Buffer.alloc(originalSize);
