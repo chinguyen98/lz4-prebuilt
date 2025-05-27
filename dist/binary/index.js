@@ -16,12 +16,12 @@ function findBinary() {
             console.log(`Found binary at: ${binaryPath}`);
             try {
                 const binary = require(binaryPath);
-                if (binary && typeof binary.encode === 'function' && typeof binary.decode === 'function') {
+                if (binary && typeof binary.compress === 'function' && typeof binary.uncompress === 'function') {
                     console.log('Successfully loaded binary module');
-                    return binaryPath;
+                    return binary;
                 }
                 else {
-                    console.log('Binary exists but has invalid format:', binary);
+                    console.log('Binary exists but has unexpected format:', binary);
                 }
             }
             catch (error) {
@@ -32,13 +32,12 @@ function findBinary() {
     throw new Error(`Failed to find valid LZ4 binary module. Searched paths: ${possiblePaths.join(', ')}`);
 }
 try {
-    const binaryPath = findBinary();
-    const lz4Binary = require(binaryPath);
-    if (!lz4Binary || typeof lz4Binary.encode !== 'function' || typeof lz4Binary.decode !== 'function') {
-        console.log('Invalid binary module format:', lz4Binary);
-        throw new Error('Failed to load LZ4 binary module - invalid module format');
-    }
-    module.exports = lz4Binary;
+    const lz4Binary = findBinary();
+    // Export the functions with our desired names
+    module.exports = {
+        encode: lz4Binary.compress,
+        decode: lz4Binary.uncompress
+    };
 }
 catch (error) {
     console.error('Fatal error loading LZ4 binary:', (error === null || error === void 0 ? void 0 : error.message) || 'Unknown error');
