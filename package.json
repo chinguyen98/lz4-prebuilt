@@ -4,13 +4,15 @@
   "description": "LZ4 compression with prebuilt binaries",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "files": [
     "dist",
-    "lib/binary/*.node",
-    "lib/binary/index.js"
+    "lib/binary/*.node"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean": "rm -rf dist",
+    "copy-binary": "mkdir -p dist/binary && cp lib/binary/*.node dist/binary/",
+    "build": "npm run clean && tsc && npm run copy-binary",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -30,7 +32,7 @@
   },
   "homepage": "https://github.com/chinguyen98/lz4-prebuilt#readme",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=16.0.0"
   },
   "dependencies": {},
   "devDependencies": {

@@ -9,7 +9,7 @@ You can install this package directly from GitHub:
 ```json
 {
   "dependencies": {
-    "lz4-prebuilt": "git+https://github.com/duyan/lz4-prebuilt.git#v1.0.0"
+    "lz4-prebuilt": "git+https://github.com/chinguyen98/lz4-prebuilt.git#v1.0.0"
   }
 }
 ```
@@ -17,7 +17,7 @@ You can install this package directly from GitHub:
 Or using npm:
 
 ```bash
-npm install git+https://github.com/duyan/lz4-prebuilt.git#v1.0.0
+npm install git+https://github.com/chinguyen98/lz4-prebuilt.git#v1.0.0
 ```
 
 ## Usage
