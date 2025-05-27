@@ -63,41 +63,57 @@ try {
       throw new TypeError('Input must be a Buffer');
     }
 
+    console.log(`[LZ4] Decompressing buffer of size ${input.length} bytes${providedSize ? `, expected size: ${providedSize} bytes` : ''}`);
+
     try {
       // First, try with provided size if available
       if (typeof providedSize === 'number' && providedSize > 0) {
-        const output = Buffer.alloc(providedSize);
-        const decompressedSize = lz4Binary.uncompress(input, output);
-        
-        if (decompressedSize === providedSize) {
-          return output;
+        console.log(`[LZ4] Attempting decompression with provided size: ${providedSize} bytes`);
+        try {
+          const output = Buffer.alloc(providedSize);
+          const decompressedSize = lz4Binary.uncompress(input, output);
+          
+          if (decompressedSize === providedSize) {
+            console.log(`[LZ4] Successfully decompressed with provided size: ${decompressedSize} bytes`);
+            return output;
+          }
+          console.log(`[LZ4] Size mismatch with provided size: expected ${providedSize}, got ${decompressedSize}`);
+        } catch (err: any) {
+          console.log(`[LZ4] Failed with provided size: ${err?.message || 'Unknown error'}`);
         }
       }
 
       // If no size provided or size doesn't match, try progressive sizing
-      const maxAttempts = 8;
-      let size = Math.max(input.length * 4, 1024); // Start with 4x compressed size or 1KB minimum
+      const maxAttempts = 10;
+      let size = Math.max(input.length * 8, 64 * 1024); // Start with 8x compressed size or 64KB minimum
       
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        console.log(`[LZ4] Attempt ${attempt + 1}/${maxAttempts} with buffer size: ${size} bytes`);
+        
         try {
           const output = Buffer.alloc(size);
           const decompressedSize = lz4Binary.uncompress(input, output);
           
           if (decompressedSize > 0 && decompressedSize <= size) {
+            console.log(`[LZ4] Successfully decompressed ${decompressedSize} bytes on attempt ${attempt + 1}`);
             return output.slice(0, decompressedSize);
           }
+          console.log(`[LZ4] Attempt ${attempt + 1} returned invalid size: ${decompressedSize}`);
         } catch (err: any) {
+          console.log(`[LZ4] Attempt ${attempt + 1} failed: ${err?.message || 'Unknown error'}`);
+          
           // If we get a buffer bounds error, the buffer might be too small
           if (attempt === maxAttempts - 1) {
             throw new Error(`Decompression failed after ${maxAttempts} attempts with max buffer size ${size}: ${err?.message || 'Unknown error'}`);
           }
         }
         
-        // Increase buffer size for next attempt
-        size = Math.min(size * 2, 64 * 1024 * 1024); // Cap at 64MB
+        // Use a more aggressive growth factor for large inputs
+        const growthFactor = input.length > 1024 * 1024 ? 4 : 2;
+        size = Math.min(size * growthFactor, 256 * 1024 * 1024); // Cap at 256MB
       }
       
-      throw new Error('Failed to decompress: could not determine correct buffer size');
+      throw new Error(`Failed to decompress after ${maxAttempts} attempts with sizes up to ${size} bytes`);
     } catch (error: any) {
       throw new Error(`Decompression failed: ${error?.message || 'Unknown error'}`);
     }
